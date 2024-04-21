@@ -36,6 +36,19 @@ jobs:
         with:
           terraform_version: 1.7.4
 
+      - uses: terraform-linters/setup-tflint@v4
+        name: Setup TFLint
+        with:
+          tflint_version: v0.50.3
+
+      - name: Init TFLint
+        run: |
+          cp .tflint.hcl ~
+          tflint --init
+        env:
+          # https://github.com/terraform-linters/tflint/blob/master/docs/user-guide/plugins.md#avoiding-rate-limiting
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Install dependencies
         run: |
           pip install -r tools/requirements.txt
@@ -49,6 +62,20 @@ jobs:
         id: fmt
         run: |
           terraform fmt -recursive -check -diff $GITHUB_WORKSPACE
+
+      - name: TFLint Modules
+        run: cd modules && tflint --recursive -f compact
+
+      - name: TFLint FAST
+        run: |
+          for STAGE_DIR in $(find fast/stages -name main.tf -printf '%h\n' ) ; do
+            STAGE_NAME=$(echo ${STAGE_DIR} | sed -e 's#^fast/stages/\([^/]*\)[/]\?.*$#\1#')
+            VAR_PATH_LEVEL="."
+            if [ -z $(echo ${STAGE_DIR} | sed -e 's#^fast/stages/[^/]*/\(.*\)$##') ] ; then
+              VAR_PATH_LEVEL=".."
+            fi
+            tflint --chdir ${STAGE_DIR} --var-file ${VAR_PATH_LEVEL}/../../../tests/fast/stages/s$(echo ${STAGE_NAME} | sed -e 's/-/_/g')/simple.tfvars
+          done
 
       - name: Check documentation
         id: documentation-fabric
