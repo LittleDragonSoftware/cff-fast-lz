@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,6 +99,7 @@ locals {
     (module.automation-tf-bootstrap-sa.iam_email) = {
       authoritative = [
         "roles/essentialcontacts.admin",
+        "roles/iam.workforcePoolAdmin",
         "roles/logging.admin",
         "roles/resourcemanager.organizationAdmin",
         "roles/resourcemanager.projectCreator",
@@ -126,6 +127,7 @@ locals {
         [
           # the organizationAdminViewer custom role is granted via the SA module
           "roles/iam.organizationRoleViewer",
+          "roles/iam.workforcePoolViewer",
           "roles/orgpolicy.policyViewer"
         ],
         local.billing_mode != "org" ? [] : [
@@ -135,6 +137,7 @@ locals {
     }
     (module.automation-tf-resman-sa.iam_email) = {
       authoritative = [
+        "roles/essentialcontacts.admin",
         "roles/logging.admin",
         "roles/resourcemanager.folderAdmin",
         "roles/resourcemanager.projectCreator",
@@ -143,6 +146,7 @@ locals {
       ]
       additive = concat(
         [
+          "roles/accesscontextmanager.policyAdmin",
           "roles/orgpolicy.policyAdmin"
         ],
         local.billing_mode != "org" ? [] : [
@@ -152,6 +156,7 @@ locals {
     }
     (module.automation-tf-resman-r-sa.iam_email) = {
       authoritative = [
+        "roles/essentialcontacts.viewer",
         "roles/logging.viewer",
         "roles/resourcemanager.folderViewer",
         "roles/resourcemanager.tagViewer",
@@ -159,6 +164,7 @@ locals {
       ]
       additive = concat(
         [
+          "roles/accesscontextmanager.policyReader",
           # the organizationAdminViewer custom role is granted via the SA module
           "roles/orgpolicy.policyViewer"
         ],
@@ -166,6 +172,20 @@ locals {
           "roles/billing.viewer"
         ]
       )
+    }
+    (module.automation-tf-vpcsc-sa.iam_email) = {
+      authoritative = []
+      additive = [
+        "roles/accesscontextmanager.policyAdmin",
+        "roles/cloudasset.viewer"
+      ]
+    }
+    (module.automation-tf-vpcsc-r-sa.iam_email) = {
+      authoritative = []
+      additive = [
+        "roles/accesscontextmanager.policyReader",
+        "roles/cloudasset.viewer"
+      ]
     }
   }
   # bootstrap user bindings

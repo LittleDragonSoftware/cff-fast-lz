@@ -49,7 +49,11 @@ locals {
     var.organization.customer_id == null ? [] : [var.organization.customer_id],
     var.org_policies_config.constraints.allowed_policy_member_domains
   )
-  drs_tag_name = "${var.organization.id}/${var.org_policies_config.tag_name}"
+  essential_contacts_domains = concat(
+    var.organization.domain == null ? [] : ["@${var.organization.domain}"],
+    [for d in var.org_policies_config.constraints.allowed_essential_contact_domains : "@${d}"]
+  )
+  org_policies_tag_name = "${var.organization.id}/${var.org_policies_config.tag_name}"
 
   # intermediate values before we merge in what comes from the checklist
   _iam_principals = {
@@ -104,16 +108,16 @@ import {
     !var.org_policies_config.import_defaults || var.bootstrap_user != null
     ? toset([])
     : toset([
-      "compute.requireOsLogin",
-      "compute.skipDefaultNetworkCreation",
-      "compute.vmExternalIpAccess",
-      "iam.allowedPolicyMemberDomains",
-      "iam.automaticIamGrantsForDefaultServiceAccounts",
+      # source: https://cloud.google.com/resource-manager/docs/secure-by-default-organizations#organization_policies_enforced_on_organization_resources
+      # listed in the order as on page
       "iam.disableServiceAccountKeyCreation",
       "iam.disableServiceAccountKeyUpload",
-      "sql.restrictAuthorizedNetworks",
-      "sql.restrictPublicIp",
+      "iam.automaticIamGrantsForDefaultServiceAccounts",
+      "iam.allowedPolicyMemberDomains",
+      "essentialcontacts.allowedContactDomains",
       "storage.uniformBucketLevelAccess",
+      "compute.setNewProjectDefaultToZonalDNSOnly", # Verified as of 2024-09-13
+      # "constraints/compute.restrictProtocolForwardingCreationForTypes", # Officially be applied starting 2024-08-15, but still MIA as of 2024-09-13
     ])
   )
   id = "organizations/${var.organization.id}/policies/${each.key}"
@@ -138,8 +142,14 @@ module "organization" {
   organization_id = module.organization-logging.id
   # human (groups) IAM bindings
   iam_by_principals = {
-    for k, v in local.iam_principals :
-    k => distinct(concat(v, lookup(var.iam_by_principals, k, [])))
+    for key in distinct(concat(
+      keys(local.iam_principals),
+      keys(var.iam_by_principals),
+    )) :
+    key => distinct(concat(
+      lookup(local.iam_principals, key, []),
+      lookup(var.iam_by_principals, key, []),
+    ))
   }
   # machine (service accounts) IAM bindings
   iam = merge(
@@ -158,22 +168,38 @@ module "organization" {
   # delegated role grant for resource manager service account
   iam_bindings = merge(
     {
+      organization_ngfw_enterprise_admin = {
+        members = [local.principals.gcp-network-admins]
+        role    = module.organization.custom_role_id["ngfw_enterprise_admin"]
+      }
       organization_iam_admin_conditional = {
         members = [module.automation-tf-resman-sa.iam_email]
         role    = module.organization.custom_role_id["organization_iam_admin"]
         condition = {
-          expression = format(
-            "api.getAttribute('iam.googleapis.com/modifiedGrantsByRole', []).hasOnly([%s])",
-            join(",", formatlist("'%s'", [
-              "roles/accesscontextmanager.policyAdmin",
-              "roles/cloudasset.viewer",
-              "roles/compute.orgFirewallPolicyAdmin",
-              "roles/compute.xpnAdmin",
-              "roles/orgpolicy.policyAdmin",
-              "roles/orgpolicy.policyViewer",
-              "roles/resourcemanager.organizationViewer",
-              module.organization.custom_role_id["tenant_network_admin"]
-            ]))
+          expression = (
+            format(
+              <<-EOT
+              api.getAttribute('iam.googleapis.com/modifiedGrantsByRole', []).hasOnly([%s])
+              || api.getAttribute('iam.googleapis.com/modifiedGrantsByRole', []).hasOnly([%s])
+              EOT
+              , join(",", formatlist("'%s'", [
+                "roles/accesscontextmanager.policyAdmin",
+                "roles/cloudasset.viewer",
+                "roles/compute.orgFirewallPolicyAdmin",
+                "roles/compute.orgFirewallPolicyUser",
+                "roles/compute.xpnAdmin",
+                "roles/orgpolicy.policyAdmin",
+                "roles/orgpolicy.policyViewer",
+                "roles/resourcemanager.organizationViewer"
+              ]))
+              , join(",", formatlist("'%s'", [
+                module.organization.custom_role_id["network_firewall_policies_admin"],
+                module.organization.custom_role_id["ngfw_enterprise_admin"],
+                module.organization.custom_role_id["ngfw_enterprise_viewer"],
+                module.organization.custom_role_id["service_project_network_admin"],
+                module.organization.custom_role_id["tenant_network_admin"]
+              ]))
+            )
           )
           title       = "automation_sa_delegated_grants"
           description = "Automation service account delegated grants."
@@ -215,13 +241,13 @@ module "organization" {
     }
   }
   org_policies = var.bootstrap_user != null ? {} : {
-    "iam.allowedPolicyMemberDomains" = {
+    "essentialcontacts.allowedContactDomains" = {
       rules = [
         {
-          allow = { values = local.drs_domains }
+          allow = { values = local.essential_contacts_domains }
           condition = {
             expression = (
-              "!resource.matchTag('${local.drs_tag_name}', 'allowed-policy-member-domains-all')"
+              "!resource.matchTag('${local.org_policies_tag_name}', 'allowed-essential-contacts-domains-all')"
             )
           }
         },
@@ -229,7 +255,28 @@ module "organization" {
           allow = { all = true }
           condition = {
             expression = (
-              "resource.matchTag('${local.drs_tag_name}', 'allowed-policy-member-domains-all')"
+              "resource.matchTag('${local.org_policies_tag_name}', 'allowed-essential-contacts-domains-all')"
+            )
+            title = "allow-all"
+          }
+        },
+      ]
+    }
+    "iam.allowedPolicyMemberDomains" = {
+      rules = [
+        {
+          allow = { values = local.drs_domains }
+          condition = {
+            expression = (
+              "!resource.matchTag('${local.org_policies_tag_name}', 'allowed-policy-member-domains-all')"
+            )
+          }
+        },
+        {
+          allow = { all = true }
+          condition = {
+            expression = (
+              "resource.matchTag('${local.org_policies_tag_name}', 'allowed-policy-member-domains-all')"
             )
             title = "allow-all"
           }
@@ -245,7 +292,8 @@ module "organization" {
       iam         = {}
       values = merge(
         {
-          allowed-policy-member-domains-all = {}
+          allowed-essential-contacts-domains-all = {}
+          allowed-policy-member-domains-all      = {}
         },
         var.org_policies_config.tag_values
       )

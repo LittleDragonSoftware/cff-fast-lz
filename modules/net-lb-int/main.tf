@@ -45,7 +45,7 @@ resource "google_compute_forwarding_rule" "default" {
   for_each    = var.forwarding_rules_config
   provider    = google-beta
   project     = var.project_id
-  name        = local.forwarding_rule_names[each.key]
+  name        = coalesce(each.value.name, local.forwarding_rule_names[each.key])
   region      = var.region
   description = each.value.description
   ip_address  = each.value.address
@@ -69,7 +69,7 @@ resource "google_compute_region_backend_service" "default" {
   provider                        = google-beta
   project                         = var.project_id
   region                          = var.region
-  name                            = var.name
+  name                            = coalesce(var.backend_service_config.name, var.name)
   description                     = var.description
   load_balancing_scheme           = "INTERNAL"
   protocol                        = var.backend_service_config.protocol
@@ -78,6 +78,8 @@ resource "google_compute_region_backend_service" "default" {
   connection_draining_timeout_sec = var.backend_service_config.connection_draining_timeout_sec
   session_affinity                = var.backend_service_config.session_affinity
   timeout_sec                     = var.backend_service_config.timeout_sec
+
+  iap { enabled = false }
 
   dynamic "backend" {
     for_each = { for b in var.backends : b.group => b }

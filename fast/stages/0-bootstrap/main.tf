@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,7 @@
  */
 
 locals {
-  gcs_storage_class = (
-    length(split("-", local.locations.gcs)) < 2
-    ? "MULTI_REGIONAL"
-    : "REGIONAL"
-  )
+  env_default = [for k, v in var.environments : k if v.is_default][0]
   principals = {
     for k, v in var.groups : k => (
       can(regex("^[a-zA-Z]+:", v))
@@ -34,5 +30,5 @@ locals {
     pubsub  = var.locations.pubsub
   }
   # naming: environment used in most resource names
-  prefix = join("-", compact([var.prefix, "prod"]))
+  prefix = join("-", compact([var.prefix, local.env_default]))
 }

@@ -94,6 +94,13 @@ resource "google_container_cluster" "cluster" {
     }
   }
 
+  dynamic "default_snat_status" {
+    for_each = var.vpc_config.disable_default_snat == null ? [] : [""]
+    content {
+      disabled = var.vpc_config.disable_default_snat
+    }
+  }
+
   dynamic "dns_config" {
     for_each = var.enable_features.dns != null ? [""] : []
     content {
@@ -121,6 +128,12 @@ resource "google_container_cluster" "cluster" {
       cluster_ipv4_cidr_block  = var.vpc_config.secondary_range_blocks.pods
       services_ipv4_cidr_block = var.vpc_config.secondary_range_blocks.services
       stack_type               = var.vpc_config.stack_type
+      dynamic "additional_pod_ranges_config" {
+        for_each = var.vpc_config.additional_ranges != null ? [""] : []
+        content {
+          pod_range_names = var.vpc_config.additional_ranges
+        }
+      }
     }
   }
 
@@ -130,6 +143,12 @@ resource "google_container_cluster" "cluster" {
       cluster_secondary_range_name  = var.vpc_config.secondary_range_names.pods
       services_secondary_range_name = var.vpc_config.secondary_range_names.services
       stack_type                    = var.vpc_config.stack_type
+      dynamic "additional_pod_ranges_config" {
+        for_each = var.vpc_config.additional_ranges != null ? [""] : []
+        content {
+          pod_range_names = var.vpc_config.additional_ranges
+        }
+      }
     }
   }
 
@@ -263,9 +282,10 @@ resource "google_container_cluster" "cluster" {
       var.private_cluster_config != null ? [""] : []
     )
     content {
-      enable_private_nodes    = true
-      enable_private_endpoint = var.private_cluster_config.enable_private_endpoint
-      master_ipv4_cidr_block  = try(var.vpc_config.master_ipv4_cidr_block, null)
+      enable_private_nodes        = true
+      enable_private_endpoint     = var.private_cluster_config.enable_private_endpoint
+      private_endpoint_subnetwork = try(var.vpc_config.master_endpoint_subnetwork, null)
+      master_ipv4_cidr_block      = try(var.vpc_config.master_ipv4_cidr_block, null)
       master_global_access_config {
         enabled = var.private_cluster_config.master_global_access
       }
@@ -278,7 +298,13 @@ resource "google_container_cluster" "cluster" {
       enabled = var.enable_features.pod_security_policy
     }
   }
-
+  dynamic "security_posture_config" {
+    for_each = var.enable_features.security_posture_config != null ? [""] : []
+    content {
+      mode               = var.enable_features.security_posture_config.mode
+      vulnerability_mode = var.enable_features.security_posture_config.vulnerability_mode
+    }
+  }
   release_channel {
     channel = var.release_channel
   }
@@ -322,6 +348,7 @@ resource "google_gke_backup_backup_plan" "backup_plan" {
   cluster  = google_container_cluster.cluster.id
   location = each.value.region
   project  = var.project_id
+  labels   = each.value.labels
   retention_policy {
     backup_delete_lock_days = try(each.value.retention_policy_delete_lock_days)
     backup_retain_days      = try(each.value.retention_policy_days)

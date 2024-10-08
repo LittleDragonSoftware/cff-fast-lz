@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2023 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ END
 fi
 
 if [[ "$1" == "gs://"* ]]; then
-  CMD="gcloud alpha storage cp $1"
+  CMD="gcloud storage cp $1"
   CP_CMD=$CMD
 elif [ ! -d "$1" ]; then
   echo "folder $1 not found"
@@ -45,6 +45,7 @@ fi
 GLOBALS="tfvars/0-globals.auto.tfvars.json"
 PROVIDER_CMD=$CMD
 STAGE_NAME=$(basename "$(pwd)")
+EXTRA_FILES=""
 
 case $STAGE_NAME in
 
@@ -53,25 +54,13 @@ case $STAGE_NAME in
   PROVIDER="providers/0-bootstrap-providers.tf"
   TFVARS=""
   ;;
-"0-bootstrap-tenant")
-  MESSAGE="remember to set the prefix in the provider file"
-  PROVIDER_CMD=$CP_CMD
-  PROVIDER="providers/0-bootstrap-tenant-providers.tf"
-  TFVARS="tfvars/0-bootstrap.auto.tfvars.json
-  tfvars/1-resman.auto.tfvars.json"
-  ;;
-"1-resman")
+"1-resman" | "1-tenant-factory")
   PROVIDER="providers/${STAGE_NAME}-providers.tf"
   TFVARS="tfvars/0-bootstrap.auto.tfvars.json"
   ;;
-"1-resman-tenant")
-  if [[ -z "$TENANT" ]]; then
-    echo "Please set a \$TENANT variable with the tenant shortname"
-    exit 1
-  fi
-  unset GLOBALS
-  PROVIDER="tenants/$TENANT/providers/1-resman-tenant-providers.tf"
-  TFVARS="tenants/$TENANT/tfvars/0-bootstrap-tenant.auto.tfvars.json"
+"1-vpcsc")
+  PROVIDER="providers/1-vpcsc-providers.tf"
+  TFVARS="tfvars/0-bootstrap.auto.tfvars.json"
   ;;
 "2-networking"*)
   if [[ -z "$TENANT" ]]; then
@@ -86,6 +75,21 @@ case $STAGE_NAME in
     tenants/$TENANT/tfvars/1-resman.auto.tfvars.json"
   fi
   ;;
+"2-project-factory"*)
+  if [[ -z "$TENANT" ]]; then
+    echo "# if this is a tenant stage, set a \$TENANT variable with the tenant shortname and run the command again"
+    PROVIDER="providers/2-project-factory-providers.tf"
+    TFVARS="tfvars/0-bootstrap.auto.tfvars.json
+    tfvars/1-resman.auto.tfvars.json"
+    EXTRA_FILES="tfvars/2-networking.auto.tfvars.json"
+  else
+    unset GLOBALS
+    PROVIDER="tenants/$TENANT/providers/2-project-factory-providers.tf"
+    TFVARS="tenants/$TENANT/tfvars/0-bootstrap-tenant.auto.tfvars.json
+    tenants/$TENANT/tfvars/1-resman.auto.tfvars.json"
+    EXTRA_FILES="tenants/$TENANT/tfvars/2-networking.auto.tfvars.json"
+  fi
+  ;;
 "2-security"*)
   if [[ -z "$TENANT" ]]; then
     echo "# if this is a tenant stage, set a \$TENANT variable with the tenant shortname and run the command again"
@@ -97,6 +101,23 @@ case $STAGE_NAME in
     PROVIDER="tenants/$TENANT/providers/2-security-providers.tf"
     TFVARS="tenants/$TENANT/tfvars/0-bootstrap-tenant.auto.tfvars.json
     tenants/$TENANT/tfvars/1-resman.auto.tfvars.json"
+  fi
+  ;;
+"3-network-security"*)
+  if [[ -z "$TENANT" ]]; then
+    echo "# if this is a tenant stage, set a \$TENANT variable with the tenant shortname and run the command again"
+    PROVIDER="providers/3-network-security-providers.tf"
+    TFVARS="tfvars/0-bootstrap.auto.tfvars.json
+    tfvars/1-resman.auto.tfvars.json
+    tfvars/2-networking.auto.tfvars.json
+    tfvars/2-security.auto.tfvars.json"
+  else
+    unset GLOBALS
+    PROVIDER="tenants/$TENANT/providers/3-network-security-providers.tf"
+    TFVARS="tenants/$TENANT/tfvars/0-bootstrap-tenant.auto.tfvars.json
+    tenants/$TENANT/tfvars/1-resman.auto.tfvars.json
+    tenants/$TENANT/tfvars/2-networking.auto.tfvars.json
+    tenants/$TENANT/tfvars/2-security.auto.tfvars.json"
   fi
   ;;
 *)
@@ -134,6 +155,13 @@ fi
 for f in $TFVARS; do
   echo "$CMD/$f ./"
 done
+
+if [[ ! -z ${EXTRA_FILES+x} ]]; then
+  echo "# optional files"
+  for f in $EXTRA_FILES; do
+    echo "$CMD/$f ./"
+  done
+fi
 
 if [[ ! -z ${MESSAGE+x} ]]; then
   echo -e "\n# ---> $MESSAGE <---"

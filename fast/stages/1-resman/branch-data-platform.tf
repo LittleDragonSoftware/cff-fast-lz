@@ -19,12 +19,12 @@
 module "branch-dp-folder" {
   source = "../../../modules/folder"
   count  = var.fast_features.data_platform ? 1 : 0
-  parent = "organizations/${var.organization.id}"
+  parent = local.root_node
   name   = "Data Platform"
   iam    = var.folder_iam.data_platform
   tag_bindings = {
     context = try(
-      module.organization.tag_values["${var.tag_names.context}/data"].id, null
+      local.tag_values["${var.tag_names.context}/data"].id, null
     )
   }
 }
@@ -52,7 +52,7 @@ module "branch-dp-dev-folder" {
   }
   tag_bindings = {
     context = try(
-      module.organization.tag_values["${var.tag_names.environment}/development"].id,
+      local.tag_values["${var.tag_names.environment}/development"].id,
       null
     )
   }
@@ -79,7 +79,7 @@ module "branch-dp-prod-folder" {
   }
   tag_bindings = {
     context = try(
-      module.organization.tag_values["${var.tag_names.environment}/production"].id,
+      local.tag_values["${var.tag_names.environment}/production"].id,
       null
     )
   }
@@ -169,14 +169,13 @@ module "branch-dp-prod-r-sa" {
 # automation buckets
 
 module "branch-dp-dev-gcs" {
-  source        = "../../../modules/gcs"
-  count         = var.fast_features.data_platform ? 1 : 0
-  project_id    = var.automation.project_id
-  name          = "dev-resman-dp-0"
-  prefix        = var.prefix
-  location      = var.locations.gcs
-  storage_class = local.gcs_storage_class
-  versioning    = true
+  source     = "../../../modules/gcs"
+  count      = var.fast_features.data_platform ? 1 : 0
+  project_id = var.automation.project_id
+  name       = "dev-resman-dp-0"
+  prefix     = var.prefix
+  location   = var.locations.gcs
+  versioning = true
   iam = {
     "roles/storage.objectAdmin"  = [module.branch-dp-dev-sa[0].iam_email]
     "roles/storage.objectViewer" = [module.branch-dp-dev-r-sa[0].iam_email]
@@ -184,14 +183,13 @@ module "branch-dp-dev-gcs" {
 }
 
 module "branch-dp-prod-gcs" {
-  source        = "../../../modules/gcs"
-  count         = var.fast_features.data_platform ? 1 : 0
-  project_id    = var.automation.project_id
-  name          = "prod-resman-dp-0"
-  prefix        = var.prefix
-  location      = var.locations.gcs
-  storage_class = local.gcs_storage_class
-  versioning    = true
+  source     = "../../../modules/gcs"
+  count      = var.fast_features.data_platform ? 1 : 0
+  project_id = var.automation.project_id
+  name       = "prod-resman-dp-0"
+  prefix     = var.prefix
+  location   = var.locations.gcs
+  versioning = true
   iam = {
     "roles/storage.objectAdmin"  = [module.branch-dp-prod-sa[0].iam_email]
     "roles/storage.objectViewer" = [module.branch-dp-prod-r-sa[0].iam_email]

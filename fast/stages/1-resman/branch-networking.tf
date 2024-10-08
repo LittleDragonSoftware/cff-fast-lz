@@ -18,17 +18,34 @@
 
 locals {
   # FAST-specific IAM
-  _network_folder_fast_iam = {
-    # read-write (apply) automation service account
-    "roles/logging.admin"                  = [module.branch-network-sa.iam_email]
-    "roles/owner"                          = [module.branch-network-sa.iam_email]
-    "roles/resourcemanager.folderAdmin"    = [module.branch-network-sa.iam_email]
-    "roles/resourcemanager.projectCreator" = [module.branch-network-sa.iam_email]
-    "roles/compute.xpnAdmin"               = [module.branch-network-sa.iam_email]
-    # read-only (plan) automation service account
-    "roles/viewer"                       = [module.branch-network-r-sa.iam_email]
-    "roles/resourcemanager.folderViewer" = [module.branch-network-r-sa.iam_email]
-  }
+  _network_folder_fast_iam = merge(
+    {
+      # read-write (apply) automation service account
+      "roles/logging.admin"                  = [module.branch-network-sa.iam_email]
+      "roles/owner"                          = [module.branch-network-sa.iam_email]
+      "roles/resourcemanager.folderAdmin"    = [module.branch-network-sa.iam_email]
+      "roles/resourcemanager.projectCreator" = [module.branch-network-sa.iam_email]
+      "roles/compute.xpnAdmin"               = [module.branch-network-sa.iam_email]
+      # read-only (plan) automation service account
+      "roles/viewer"                       = [module.branch-network-r-sa.iam_email]
+      "roles/resourcemanager.folderViewer" = [module.branch-network-r-sa.iam_email]
+    },
+    var.fast_features.nsec != true ? {} : {
+      # nsec service accounts
+      "roles/serviceusage.serviceUsageAdmin" = [
+        try(module.branch-nsec-sa[0].iam_email, null)
+      ]
+      "roles/serviceusage.serviceUsageConsumer" = [
+        try(module.branch-nsec-r-sa[0].iam_email, null)
+      ]
+      (var.custom_roles["network_firewall_policies_admin"]) = [
+        try(module.branch-nsec-sa[0].iam_email, null)
+      ]
+      "roles/compute.orgFirewallPolicyUser" = [
+        try(module.branch-nsec-r-sa[0].iam_email, null)
+      ]
+    }
+  )
   # deep-merge FAST-specific IAM with user-provided bindings in var.folder_iam
   _network_folder_iam = merge(
     var.folder_iam.network,
@@ -41,7 +58,7 @@ locals {
 
 module "branch-network-folder" {
   source = "../../../modules/folder"
-  parent = "organizations/${var.organization.id}"
+  parent = local.root_node
   name   = "Networking"
   iam_by_principals = {
     (local.principals.gcp-network-admins) = [
@@ -53,7 +70,7 @@ module "branch-network-folder" {
   iam = local._network_folder_iam
   tag_bindings = {
     context = try(
-      module.organization.tag_values["${var.tag_names.context}/networking"].id, null
+      local.tag_values["${var.tag_names.context}/networking"].id, null
     )
   }
 }
@@ -64,24 +81,28 @@ module "branch-network-prod-folder" {
   name   = "Production"
   iam = {
     # read-write (apply) automation service accounts
-    (local.custom_roles.service_project_network_admin) = concat(
-      local.branch_optional_sa_lists.dp-prod,
-      local.branch_optional_sa_lists.gke-prod,
-      local.branch_optional_sa_lists.gcve-prod,
-      local.branch_optional_sa_lists.pf-prod,
-    )
+    (local.custom_roles.service_project_network_admin) = compact([
+      try(module.branch-dp-prod-sa[0].iam_email, null),
+      try(module.branch-gcve-prod-sa[0].iam_email, null),
+      try(module.branch-gke-prod-sa[0].iam_email, null),
+      try(module.branch-pf-sa.iam_email, null),
+      try(module.branch-pf-prod-sa.iam_email, null)
+    ])
     # read-only (plan) automation service accounts
-    "roles/compute.networkViewer" = concat(
-      local.branch_optional_r_sa_lists.dp-prod,
-      local.branch_optional_r_sa_lists.gke-prod,
-      local.branch_optional_r_sa_lists.gcve-prod,
-      local.branch_optional_r_sa_lists.pf-prod,
-    )
-    (local.custom_roles.gcve_network_admin) = local.branch_optional_sa_lists.gcve-prod
+    "roles/compute.networkViewer" = compact([
+      try(module.branch-dp-prod-r-sa[0].iam_email, null),
+      try(module.branch-gcve-prod-r-sa[0].iam_email, null),
+      try(module.branch-gke-prod-r-sa[0].iam_email, null),
+      try(module.branch-pf-r-sa.iam_email, null),
+      try(module.branch-pf-prod-r-sa.iam_email, null)
+    ])
+    (local.custom_roles.gcve_network_admin) = compact([
+      try(module.branch-gcve-prod-sa[0].iam_email, null)
+    ])
   }
   tag_bindings = {
     environment = try(
-      module.organization.tag_values["${var.tag_names.environment}/production"].id,
+      local.tag_values["${var.tag_names.environment}/production"].id,
       null
     )
   }
@@ -93,24 +114,28 @@ module "branch-network-dev-folder" {
   name   = "Development"
   iam = {
     # read-write (apply) automation service accounts
-    (local.custom_roles.service_project_network_admin) = concat(
-      local.branch_optional_sa_lists.dp-dev,
-      local.branch_optional_sa_lists.gke-dev,
-      local.branch_optional_sa_lists.gcve-dev,
-      local.branch_optional_sa_lists.pf-dev,
-    )
+    (local.custom_roles.service_project_network_admin) = compact([
+      try(module.branch-dp-dev-sa[0].iam_email, null),
+      try(module.branch-gcve-dev-sa[0].iam_email, null),
+      try(module.branch-gke-dev-sa[0].iam_email, null),
+      try(module.branch-pf-sa.iam_email, null),
+      try(module.branch-pf-dev-sa.iam_email, null)
+    ])
     # read-only (plan) automation service accounts
-    "roles/compute.networkViewer" = concat(
-      local.branch_optional_r_sa_lists.dp-dev,
-      local.branch_optional_r_sa_lists.gke-dev,
-      local.branch_optional_r_sa_lists.gcve-dev,
-      local.branch_optional_r_sa_lists.pf-dev,
-    )
-    (local.custom_roles.gcve_network_admin) = local.branch_optional_sa_lists.gcve-dev
+    "roles/compute.networkViewer" = compact([
+      try(module.branch-dp-dev-r-sa[0].iam_email, null),
+      try(module.branch-gcve-dev-r-sa[0].iam_email, null),
+      try(module.branch-gke-dev-r-sa[0].iam_email, null),
+      try(module.branch-pf-r-sa.iam_email, null),
+      try(module.branch-pf-dev-r-sa.iam_email, null)
+    ])
+    (local.custom_roles.gcve_network_admin) = compact([
+      try(module.branch-gcve-dev-sa[0].iam_email, null)
+    ])
   }
   tag_bindings = {
     environment = try(
-      module.organization.tag_values["${var.tag_names.environment}/development"].id,
+      local.tag_values["${var.tag_names.environment}/development"].id,
       null
     )
   }
@@ -119,11 +144,12 @@ module "branch-network-dev-folder" {
 # automation service account
 
 module "branch-network-sa" {
-  source       = "../../../modules/iam-service-account"
-  project_id   = var.automation.project_id
-  name         = "prod-resman-net-0"
-  display_name = "Terraform resman networking service account."
-  prefix       = var.prefix
+  source                 = "../../../modules/iam-service-account"
+  project_id             = var.automation.project_id
+  name                   = "prod-resman-net-0"
+  display_name           = "Terraform resman networking service account."
+  prefix                 = var.prefix
+  service_account_create = var.root_node == null
   iam = {
     "roles/iam.serviceAccountTokenCreator" = compact([
       try(module.branch-network-sa-cicd[0].iam_email, null)
@@ -161,13 +187,12 @@ module "branch-network-r-sa" {
 # automation bucket
 
 module "branch-network-gcs" {
-  source        = "../../../modules/gcs"
-  project_id    = var.automation.project_id
-  name          = "prod-resman-net-0"
-  prefix        = var.prefix
-  location      = var.locations.gcs
-  storage_class = local.gcs_storage_class
-  versioning    = true
+  source     = "../../../modules/gcs"
+  project_id = var.automation.project_id
+  name       = "prod-resman-net-0"
+  prefix     = var.prefix
+  location   = var.locations.gcs
+  versioning = true
   iam = {
     "roles/storage.objectAdmin"  = [module.branch-network-sa.iam_email]
     "roles/storage.objectViewer" = [module.branch-network-r-sa.iam_email]

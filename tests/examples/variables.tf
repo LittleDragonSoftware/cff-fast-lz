@@ -22,20 +22,12 @@ variable "billing_account_id" {
   default = "123456-123456-123456"
 }
 
+variable "ca_pool_id" {
+  default = "ca-pool-id"
+}
+
 variable "group_email" {
   default = "organization-admins@example.org"
-}
-
-variable "keyring" {
-  default = {
-    name = "keyring"
-  }
-}
-
-variable "kms_key" {
-  default = {
-    id = "kms_key_self_link"
-  }
 }
 
 variable "organization_id" {
@@ -62,11 +54,18 @@ variable "region" {
   default = "europe-west8"
 }
 
+variable "regions" {
+  default = {
+    primary   = "europe-west8"
+    secondary = "europe-west9"
+  }
+}
+
 variable "service_account" {
   default = {
     id        = "service_account_id"
-    email     = "service_account_email"
-    iam_email = "service_account_iam_email"
+    email     = "sa1@sa.example"
+    iam_email = "serviceAccount:sa1@sa.example"
   }
 }
 
@@ -79,12 +78,29 @@ variable "subnet" {
   }
 }
 
+variable "subnets" {
+  default = {
+    primary = {
+      name      = "primary"
+      region    = "europe-west8"
+      cidr      = "10.0.16.0/24"
+      self_link = "https://www.googleapis.com/compute/v1/projects/my-project/regions/europe-west8/subnetworks/primary"
+    }
+    secondary = {
+      name      = "secondary"
+      region    = "europe-west89"
+      cidr      = "10.0.16.0/24"
+      self_link = "https://www.googleapis.com/compute/v1/projects/my-project/regions/europe-west9/subnetworks/secondary"
+    }
+  }
+}
+
 variable "subnet_psc_1" {
   default = {
     name      = "subnet_name"
     region    = "subnet_region"
     cidr      = "subnet_cidr"
-    self_link = "subnet_self_link"
+    self_link = "https://www.googleapis.com/compute/v1/projects/my-project/regions/europe-west8/subnetworks/subnet"
   }
 }
 

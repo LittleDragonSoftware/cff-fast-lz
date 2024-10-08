@@ -228,7 +228,7 @@ variable "replicas" {
   description = "Map of NAME=> {REGION, KMS_KEY} for additional read replicas. Set to null to disable replica creation."
   type = map(object({
     region              = string
-    encryption_key_name = string
+    encryption_key_name = optional(string)
   }))
   default = {}
 }
@@ -243,7 +243,6 @@ variable "ssl" {
   description = "Setting to enable SSL, set config and certificates."
   type = object({
     client_certificates = optional(list(string))
-    require_ssl         = optional(bool)
     # More details @ https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/sql_database_instance#ssl_mode
     ssl_mode = optional(string)
   })

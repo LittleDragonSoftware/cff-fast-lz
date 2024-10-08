@@ -67,15 +67,29 @@ locals {
       name          = "resman"
       sa            = module.automation-tf-resman-r-sa.email
     })
-    "0-bootstrap-tenant" = templatefile(local._tpl_providers, {
-      backend_extra = join("\n", [
-        "# remove the newline between quotes and set the tenant name as prefix",
-        "prefix = \"",
-        "\""
-      ])
-      bucket = module.automation-tf-resman-gcs.name
-      name   = "bootstrap-tenant"
-      sa     = module.automation-tf-resman-sa.email
+    "1-tenant-factory" = templatefile(local._tpl_providers, {
+      backend_extra = "prefix = \"tenant-factory\""
+      bucket        = module.automation-tf-resman-gcs.name
+      name          = "tenant-factory"
+      sa            = module.automation-tf-resman-sa.email
+    })
+    "1-tenant-factory-r" = templatefile(local._tpl_providers, {
+      backend_extra = "prefix = \"tenant-factory\""
+      bucket        = module.automation-tf-resman-gcs.name
+      name          = "tenant-factory"
+      sa            = module.automation-tf-resman-r-sa.email
+    })
+    "1-vpcsc" = templatefile(local._tpl_providers, {
+      backend_extra = "prefix = \"vpcsc\""
+      bucket        = module.automation-tf-vpcsc-gcs.name
+      name          = "vpcsc"
+      sa            = module.automation-tf-vpcsc-sa.email
+    })
+    "1-vpcsc-r" = templatefile(local._tpl_providers, {
+      backend_extra = "prefix = \"vpcsc\""
+      bucket        = module.automation-tf-vpcsc-gcs.name
+      name          = "vpcsc"
+      sa            = module.automation-tf-vpcsc-r-sa.email
     })
   }
   tfvars = {
@@ -92,6 +106,8 @@ locals {
         bootstrap-r = module.automation-tf-bootstrap-r-sa.email
         resman      = module.automation-tf-resman-sa.email
         resman-r    = module.automation-tf-resman-r-sa.email
+        vpcsc       = module.automation-tf-vpcsc-sa.email
+        vpcsc-r     = module.automation-tf-vpcsc-r-sa.email
       }
     }
     custom_roles = module.organization.custom_role_id
@@ -99,6 +115,12 @@ locals {
       project_id        = module.log-export-project.project_id
       project_number    = module.log-export-project.number
       writer_identities = module.organization.sink_writer_identities
+      destinations = {
+        bigquery = try(module.log-export-dataset[0].id, null)
+        logging  = { for k, v in module.log-export-logbucket : k => v.id }
+        pubsub   = { for k, v in module.log-export-pubsub : k => v.id }
+        storage  = try(module.log-export-gcs[0].id, null)
+      }
     }
     org_policy_tags = {
       key_id = (
@@ -113,8 +135,8 @@ locals {
   }
   tfvars_globals = {
     billing_account = var.billing_account
-    fast_features   = var.fast_features
     groups          = local.principals
+    environments    = var.environments
     locations       = local.locations
     organization    = var.organization
     prefix          = var.prefix

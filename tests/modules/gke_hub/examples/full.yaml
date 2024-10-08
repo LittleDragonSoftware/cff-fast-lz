@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,6 +41,8 @@ values:
       - enabled: false
       network_policy_config:
       - disabled: true
+      stateful_ha_config:
+      - enabled: false
     allow_net_admin: null
     binary_authorization: []
     datapath_provider: ADVANCED_DATAPATH
@@ -49,6 +51,7 @@ values:
     description: null
     dns_config: []
     enable_autopilot: null
+    enable_cilium_clusterwide_network_policy: false
     enable_fqdn_network_policy: false
     enable_intranode_visibility: false
     enable_k8s_beta_apis: []
@@ -87,6 +90,7 @@ values:
     node_config:
     - advanced_machine_features: []
       boot_disk_kms_key: null
+      containerd_config: []
       enable_confidential_storage: null
       ephemeral_storage_config: []
       ephemeral_storage_local_ssd_config: []
@@ -101,14 +105,17 @@ values:
       preemptible: false
       reservation_affinity: []
       resource_labels: null
+      resource_manager_tags: null
       sandbox_config: []
+      secondary_boot_disks: []
       sole_tenant_config: []
       spot: false
       tags: null
       taint: []
     node_pool_defaults:
     - node_config_defaults:
-      - gcfs_config:
+      - containerd_config: []
+        gcfs_config:
         - enabled: false
     pod_security_policy_config: []
     private_cluster_config:
@@ -122,6 +129,7 @@ values:
     remove_default_node_pool: true
     resource_labels: null
     resource_usage_export_config: []
+    secret_manager_config: []
     timeouts: null
     workload_identity_config:
     - workload_pool: gkehub-test.svc.id.goog
@@ -166,6 +174,7 @@ values:
     membership: cluster-1
     membership_location: null
     mesh: []
+    policycontroller: []
     project: gkehub-test
     timeouts: null
   module.hub.google_gke_hub_membership.default["cluster-1"]:
@@ -181,14 +190,38 @@ values:
     timeouts: null
   module.project.google_project.project[0]:
     auto_create_network: false
+    deletion_policy: 'DELETE'
     billing_account: 123456-123456-123456
     folder_id: '12345'
     labels: null
     name: gkehub-test
     org_id: null
     project_id: gkehub-test
-    skip_delete: false
     timeouts: null
+  module.project.google_project_iam_member.service_agents["anthosconfigmanagement"]:
+    condition: []
+    project: gkehub-test
+    role: roles/anthosconfigmanagement.serviceAgent
+  module.project.google_project_iam_member.service_agents["container-engine-robot"]:
+    condition: []
+    project: gkehub-test
+    role: roles/container.serviceAgent
+  module.project.google_project_iam_member.service_agents["gkehub"]:
+    condition: []
+    project: gkehub-test
+    role: roles/gkehub.serviceAgent
+  module.project.google_project_iam_member.service_agents["gkenode"]:
+    condition: []
+    project: gkehub-test
+    role: roles/container.nodeServiceAgent
+  module.project.google_project_iam_member.service_agents["mcsd"]:
+    condition: []
+    project: gkehub-test
+    role: roles/multiclusterservicediscovery.serviceAgent
+  module.project.google_project_iam_member.service_agents["multiclusteringress"]:
+    condition: []
+    project: gkehub-test
+    role: roles/multiclusteringress.serviceAgent
   module.project.google_project_service.project_services["anthosconfigmanagement.googleapis.com"]:
     disable_dependent_services: false
     disable_on_destroy: false
@@ -231,13 +264,25 @@ values:
     project: gkehub-test
     service: multiclusterservicediscovery.googleapis.com
     timeouts: null
-  module.project.google_project_service_identity.jit_si["gkehub.googleapis.com"]:
+  module.project.google_project_service_identity.default["anthosconfigmanagement.googleapis.com"]:
+    project: gkehub-test
+    service: anthosconfigmanagement.googleapis.com
+    timeouts: null
+  module.project.google_project_service_identity.default["container.googleapis.com"]:
+    project: gkehub-test
+    service: container.googleapis.com
+    timeouts: null
+  module.project.google_project_service_identity.default["gkehub.googleapis.com"]:
     project: gkehub-test
     service: gkehub.googleapis.com
     timeouts: null
-  module.project.google_project_service_identity.jit_si["multiclusteringress.googleapis.com"]:
+  module.project.google_project_service_identity.default["multiclusteringress.googleapis.com"]:
     project: gkehub-test
     service: multiclusteringress.googleapis.com
+    timeouts: null
+  module.project.google_project_service_identity.default["multiclusterservicediscovery.googleapis.com"]:
+    project: gkehub-test
+    service: multiclusterservicediscovery.googleapis.com
     timeouts: null
   module.vpc.google_compute_network.network[0]:
     auto_create_subnetworks: false
@@ -253,6 +298,7 @@ values:
     description: Terraform-managed.
     dest_range: 199.36.153.8/30
     name: network-private-googleapis
+    network: network
     next_hop_gateway: default-internet-gateway
     next_hop_ilb: null
     next_hop_instance: null
@@ -265,6 +311,7 @@ values:
     description: Terraform-managed.
     dest_range: 199.36.153.4/30
     name: network-restricted-googleapis
+    network: network
     next_hop_gateway: default-internet-gateway
     next_hop_ilb: null
     next_hop_instance: null
@@ -279,11 +326,11 @@ values:
     ipv6_access_type: null
     log_config: []
     name: cluster-1
+    network: network
     private_ip_google_access: true
     project: gkehub-test
     region: europe-west1
     role: null
-    secondary_ip_range: []
     timeouts: null
 
 counts:
@@ -295,9 +342,10 @@ counts:
   google_gke_hub_feature_membership: 1
   google_gke_hub_membership: 1
   google_project: 1
+  google_project_iam_member: 6
   google_project_service: 7
-  google_project_service_identity: 2
+  google_project_service_identity: 5
   modules: 4
-  resources: 18
+  resources: 27
 
 outputs: {}

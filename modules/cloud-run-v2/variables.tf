@@ -80,6 +80,18 @@ variable "create_job" {
   default     = false
 }
 
+variable "custom_audiences" {
+  description = "Custom audiences for service."
+  type        = list(string)
+  default     = null
+}
+
+variable "deletion_protection" {
+  description = "Deletion protection setting for this Cloud Run service."
+  type        = string
+  default     = null
+}
+
 variable "encryption_key" {
   description = "The full resource name of the Cloud KMS CryptoKey."
   type        = string
@@ -183,6 +195,10 @@ variable "revision" {
     max_concurrency            = optional(number)
     max_instance_count         = optional(number)
     min_instance_count         = optional(number)
+    job = optional(object({
+      max_retries = optional(number)
+      task_count  = optional(number)
+    }), {})
     vpc_access = optional(object({
       connector = optional(string)
       egress    = optional(string)
@@ -212,6 +228,13 @@ variable "service_account_create" {
   description = "Auto-create service account."
   type        = bool
   default     = false
+}
+
+variable "tag_bindings" {
+  description = "Tag bindings for this service, in key => tag value id format."
+  type        = map(string)
+  nullable    = false
+  default     = {}
 }
 
 variable "volumes" {

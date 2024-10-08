@@ -165,8 +165,8 @@ module "project" {
     "constraints/compute.skipDefaultNetworkCreation" = true
   }
   service_encryption_key_ids = {
-    compute = [local.kms.europe-west1.compute]
-    storage = [local.kms.europe.gcs]
+    "compute.googleapis.com" = [local.kms.europe-west1.compute]
+    "storage.googleapis.com" = [local.kms.europe.gcs]
   }
   shared_vpc_service_config = {
     attach       = true
@@ -1072,6 +1072,18 @@ outputs:
 
 You can now use this output to create the inventory file for your test. As mentioned before, please only use those values relevant to your test scenario.
 
+You can optionally pass to the command additional files that your plan might need to properly execute.
+
+In this example we pass in two extra files from the organization folder.
+
+```bash
+$ python tools/plan_summary.py modules/organization \
+   tests/modules/organization/common.tfvars \
+   tests/modules/organization/audit_config.tfvars \
+   --extra-files ../my-file-1.tf \
+   --extra-files ../my-file-2.yaml
+```
+
 ### Running end-to-end tests
 
 You can use end-to-end tests to verify your code against GCP API. These tests verify that `terraform apply` succeeds, `terraform plan` is empty afterwards and that `terraform destroy` raises no error.
@@ -1107,6 +1119,7 @@ export TFTEST_E2E_organization_id="1234567890" # your organization id
 export TFTEST_E2E_parent="folders/1234567890"  # folder under which test resources will be created
 export TFTEST_E2E_prefix="your-unique-prefix"  # unique prefix for projects, no longer than 7 characters
 export TFTEST_E2E_region="europe-west4"  # region to use
+export TFTEST_E2E_region_secondary="europe-west5" # secondary region to use
 ```
 
 To use Service Account Impersonation, use provider environment variable
@@ -1136,6 +1149,7 @@ organization_id = "1234567890"  # your organization id
 parent          = "folders/1234567890"  # folder under which test resources will be created
 prefix          = "your-unique-prefix"  # unique prefix for projects
 region          = "europe-west4"  # region to use
+region_secondary = "europe-west5" # secondary region to use
 timestamp       = "1696444185" # generate your own timestamp - will be used as a part of prefix for globally unique resources
 ```
 

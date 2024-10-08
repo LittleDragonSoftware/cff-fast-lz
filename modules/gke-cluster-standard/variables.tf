@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 variable "backup_configs" {
   description = "Configuration for Backup for GKE."
   type = object({
@@ -24,6 +25,7 @@ variable "backup_configs" {
       encryption_key                    = optional(string)
       include_secrets                   = optional(bool, true)
       include_volume_data               = optional(bool, true)
+      labels                            = optional(map(string))
       namespaces                        = optional(list(string))
       schedule                          = optional(string)
       retention_policy_days             = optional(number)
@@ -38,6 +40,7 @@ variable "backup_configs" {
 variable "cluster_autoscaling" {
   description = "Enable and configure limits for Node Auto-Provisioning with Cluster Autoscaler."
   type = object({
+    enabled             = optional(bool, true)
     autoscaling_profile = optional(string, "BALANCED")
     auto_provisioning_defaults = optional(object({
       boot_disk_kms_key = optional(string)
@@ -71,16 +74,16 @@ variable "cluster_autoscaling" {
       # add validation rule to ensure only one is present if upgrade settings is defined
     }))
     cpu_limits = optional(object({
-      min = number
+      min = optional(number, 0)
       max = number
     }))
     mem_limits = optional(object({
-      min = number
+      min = optional(number, 0)
       max = number
     }))
-    gpu_resources = optional(list(object({
+    accelerator_resources = optional(list(object({
       resource_type = string
-      min           = number
+      min           = optional(number, 0)
       max           = number
     })))
   })
@@ -160,6 +163,7 @@ variable "enable_addons" {
     }))
     kalm           = optional(bool, false)
     network_policy = optional(bool, false)
+    stateful_ha    = optional(bool, false)
   })
   default = {
     horizontal_pod_autoscaling = true
@@ -193,6 +197,10 @@ variable "enable_features" {
     l4_ilb_subsetting    = optional(bool, false)
     mesh_certificates    = optional(bool)
     pod_security_policy  = optional(bool, false)
+    security_posture_config = optional(object({
+      mode               = string
+      vulnerability_mode = string
+    }))
     resource_usage_export = optional(object({
       dataset                              = string
       enable_network_egress_metering       = optional(bool)
@@ -227,7 +235,8 @@ variable "issue_client_certificate" {
 variable "labels" {
   description = "Cluster resource labels."
   type        = map(string)
-  default     = null
+  default     = {}
+  nullable    = false
 }
 
 variable "location" {
@@ -310,8 +319,7 @@ variable "monitoring_config" {
     enable_managed_prometheus = optional(bool, true)
     advanced_datapath_observability = optional(object({
       enable_metrics = bool
-      enable_relay   = optional(bool)
-      relay_mode     = optional(string)
+      enable_relay   = bool
     }))
   })
   default  = {}
@@ -341,28 +349,6 @@ variable "monitoring_config" {
     ]) ? var.monitoring_config.enable_managed_prometheus : true
     error_message = "Kube state metrics collection requires Google Cloud Managed Service for Prometheus to be enabled."
   }
-  validation {
-    condition = (
-      try(
-        var.monitoring_config.advanced_datapath_observability.relay_mode,
-        null
-      ) == null
-      ||
-      contains(
-        [
-          "RELAY_MODE_UNSPECIFIED",
-          "DISABLED",
-          "INTERNAL_VPC_LB",
-          "EXTERNAL_LB"
-        ],
-        try(
-          var.monitoring_config.advanced_datapath_observability.relay_mode,
-          ""
-        )
-      )
-    )
-    error_message = "Invalid relay mode value."
-  }
 }
 
 variable "name" {
@@ -374,10 +360,13 @@ variable "node_config" {
   description = "Node-level configuration."
   type = object({
     boot_disk_kms_key = optional(string)
+    k8s_labels        = optional(map(string))
+    labels            = optional(map(string))
     service_account   = optional(string)
     tags              = optional(list(string))
   })
-  default = {}
+  default  = {}
+  nullable = false
 }
 
 variable "node_locations" {
@@ -415,17 +404,20 @@ variable "release_channel" {
 variable "vpc_config" {
   description = "VPC-level configuration."
   type = object({
-    network                = string
-    subnetwork             = string
-    master_ipv4_cidr_block = optional(string)
+    disable_default_snat       = optional(bool)
+    network                    = string
+    subnetwork                 = string
+    master_ipv4_cidr_block     = optional(string)
+    master_endpoint_subnetwork = optional(string)
     secondary_range_blocks = optional(object({
       pods     = string
       services = string
     }))
     secondary_range_names = optional(object({
-      pods     = optional(string, "pods")
-      services = optional(string, "services")
+      pods     = optional(string)
+      services = optional(string)
     }))
+    additional_ranges        = optional(list(string))
     master_authorized_ranges = optional(map(string))
     stack_type               = optional(string)
   })

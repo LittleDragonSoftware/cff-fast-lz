@@ -22,6 +22,7 @@ variable "backup_configs" {
       encryption_key                    = optional(string)
       include_secrets                   = optional(bool, true)
       include_volume_data               = optional(bool, true)
+      labels                            = optional(map(string))
       namespaces                        = optional(list(string))
       region                            = string
       schedule                          = string
@@ -81,7 +82,11 @@ variable "enable_features" {
     l4_ilb_subsetting   = optional(bool, false)
     mesh_certificates   = optional(bool)
     pod_security_policy = optional(bool, false)
-    allow_net_admin     = optional(bool, false)
+    security_posture_config = optional(object({
+      mode               = string
+      vulnerability_mode = string
+    }))
+    allow_net_admin = optional(bool, false)
     resource_usage_export = optional(object({
       dataset                              = string
       enable_network_egress_metering       = optional(bool)
@@ -241,17 +246,20 @@ variable "release_channel" {
 variable "vpc_config" {
   description = "VPC-level configuration."
   type = object({
-    network                = string
-    subnetwork             = string
-    master_ipv4_cidr_block = optional(string)
+    disable_default_snat       = optional(bool)
+    network                    = string
+    subnetwork                 = string
+    master_ipv4_cidr_block     = optional(string)
+    master_endpoint_subnetwork = optional(string)
     secondary_range_blocks = optional(object({
       pods     = string
       services = string
     }))
     secondary_range_names = optional(object({
-      pods     = optional(string, "pods")
-      services = optional(string, "services")
+      pods     = optional(string)
+      services = optional(string)
     }))
+    additional_ranges        = optional(list(string))
     master_authorized_ranges = optional(map(string))
     stack_type               = optional(string)
   })

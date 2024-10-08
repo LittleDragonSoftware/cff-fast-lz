@@ -13,10 +13,14 @@ billing_account = {
 }
 custom_roles = {
   # organization_iam_admin = "organizations/123456789012/roles/organizationIamAdmin",
-  gcve_network_admin            = "organizations/123456789012/roles/gcveNetworkAdmin"
-  organization_admin_viewer     = "organizations/123456789012/roles/organizationAdminViewer"
-  service_project_network_admin = "organizations/123456789012/roles/xpnServiceAdmin"
-  storage_viewer                = "organizations/123456789012/roles/storageViewer"
+  gcve_network_admin               = "organizations/123456789012/roles/gcveNetworkAdmin"
+  network_firewall_policies_admin  = "organizations/123456789012/roles/networkFirewallPoliciesAdmin"
+  network_firewall_policies_viewer = "organizations/123456789012/roles/networkFirewallPoliciesViewer"
+  ngfw_enterprise_admin            = "organizations/123456789012/roles/ngfwEnterpriseAdmin"
+  ngfw_enterprise_viewer           = "organizations/123456789012/roles/ngfwEnterpriseViewer"
+  organization_admin_viewer        = "organizations/123456789012/roles/organizationAdminViewer"
+  service_project_network_admin    = "organizations/123456789012/roles/xpnServiceAdmin"
+  storage_viewer                   = "organizations/123456789012/roles/storageViewer"
 }
 factories_config = {
   checklist_data = "checklist-data.json"
@@ -24,10 +28,13 @@ factories_config = {
 groups = {
   gcp-billing-admins      = "gcp-billing-admins",
   gcp-devops              = "gcp-devops",
-  gcp-network-admins      = "gcp-network-admins",
+  gcp-network-admins      = "gcp-vpc-network-admins",
   gcp-organization-admins = "gcp-organization-admins",
   gcp-security-admins     = "gcp-security-admins",
   gcp-support             = "gcp-support"
+}
+logging = {
+  project_id = "fast-prod-log-audit-0"
 }
 organization = {
   domain      = "fast.example.com"

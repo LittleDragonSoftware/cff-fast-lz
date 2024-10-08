@@ -49,11 +49,6 @@ locals {
       : null
     )
   } : {}
-  gcs_storage_class = (
-    length(split("-", var.log_locations.storage)) < 2
-    ? "MULTI_REGIONAL"
-    : "REGIONAL"
-  )
   log_types = toset([for k, v in var.log_sinks : v.type])
   log_keys = {
     for service, key in local._log_keys : service => key if key != null
@@ -84,7 +79,7 @@ module "log-export-project" {
     "storage.googleapis.com",
     "stackdriver.googleapis.com"
   ]
-  service_encryption_key_ids = var.enable_features.encryption ? local.log_keys : {}
+  service_encryption_key_ids = var.enable_features.encryption ? local.log_keys : null
 
   depends_on = [
     module.log-kms
@@ -110,7 +105,6 @@ module "log-export-gcs" {
   name           = "audit-logs"
   prefix         = var.prefix
   location       = replace(var.log_locations.storage, "europe", "EU")
-  storage_class  = local.gcs_storage_class
   encryption_key = var.enable_features.encryption ? module.log-kms[var.log_locations.storage].keys["storage"].id : null
 }
 

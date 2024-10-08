@@ -79,9 +79,11 @@ These modules are used in the examples included in this repository. If you are u
 
 ## Data
 
+- [AlloyDB](./alloydb)
 - [Analytics Hub](./analytics-hub)
 - [BigQuery dataset](./bigquery-dataset)
 - [Bigtable instance](./bigtable-instance)
+- [Biglake catalog](./biglake-catalog)
 - [Cloud SQL instance](./cloudsql-instance)
 - [Data Catalog Policy Tag](./data-catalog-policy-tag)
 - [Data Catalog Tag](./data-catalog-tag)
@@ -91,8 +93,11 @@ These modules are used in the examples included in this repository. If you are u
 - [Dataplex](./dataplex)
 - [Dataplex DataScan](./dataplex-datascan/)
 - [Dataproc](./dataproc)
+- [Firestore](./firestore)
 - [GCS](./gcs)
+- [Looker Core](./looker-core)
 - [Pub/Sub](./pubsub)
+- [Spanner instance](./spanner-instance)
 
 ## Development
 
@@ -101,15 +106,18 @@ These modules are used in the examples included in this repository. If you are u
 - [Artifact Registry](./artifact-registry)
 - [Container Registry](./container-registry)
 - [Cloud Source Repository](./source-repository)
+- [Secure Source Manager instance](./secure-source-manager-instance)
 - [Workstation cluster](./workstation-cluster)
 
 ## Security
 
 - [Binauthz](./binauthz/)
+- [Certificate Authority Service (CAS)](./certificate-authority-service)
 - [KMS](./kms)
 - [SecretManager](./secret-manager)
 - [VPC Service Control](./vpc-sc)
 - [Secure Web Proxy](./net-swp)
+- [Certificate Manager](./certificate-manager)
 
 ## Serverless
 

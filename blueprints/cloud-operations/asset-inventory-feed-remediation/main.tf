@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ module "pubsub" {
   }
   iam = {
     "roles/pubsub.publisher" = [
-      "serviceAccount:${module.project.service_accounts.robots.cloudasset}"
+      module.project.service_agents.cloudasset.iam_email
     ]
   }
 }
@@ -85,8 +85,10 @@ module "cf" {
     location = var.region
   }
   bundle_config = {
-    source_dir  = "${path.module}/cf"
-    output_path = var.bundle_path
+    path = "${path.module}/cf"
+    folder_options = {
+      archive_path = var.bundle_path
+    }
   }
   service_account = module.service-account.email
   trigger_config = {

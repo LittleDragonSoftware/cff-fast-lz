@@ -47,7 +47,7 @@ resource "google_compute_ha_vpn_gateway" "ha_gateway" {
 
 resource "google_compute_external_vpn_gateway" "external_gateway" {
   for_each        = local.peer_gateways_external
-  name            = "${var.name}-${each.key}"
+  name            = each.value.name != null ? each.value.name : "${var.name}-${each.key}"
   project         = var.project_id
   redundancy_type = each.value.redundancy_type
   description     = each.value.description
@@ -94,7 +94,7 @@ resource "google_compute_router_peer" "bgp_peer" {
   for_each                  = var.tunnels
   region                    = var.region
   project                   = var.project_id
-  name                      = "${var.name}-${each.key}"
+  name                      = each.value.bgp_peer.name != null ? each.value.bgp_peer.name : "${var.name}-${each.key}"
   router                    = coalesce(each.value.router, local.router)
   peer_ip_address           = each.value.bgp_peer.address
   peer_asn                  = each.value.bgp_peer.asn
@@ -104,26 +104,13 @@ resource "google_compute_router_peer" "bgp_peer" {
     ? "CUSTOM"
     : "DEFAULT"
   )
-  advertised_groups = concat(
-    try(each.value.bgp_peer.custom_advertise.all_subnets, false) ? ["ALL_SUBNETS"] : [],
-    try(each.value.bgp_peer.custom_advertise.all_vpc_subnets, false) ? ["ALL_VPC_SUBNETS"] : [],
-    try(each.value.bgp_peer.custom_advertise.all_peer_vpc_subnets, false) ? ["ALL_PEER_VPC_SUBNETS"] : []
-  )
+  advertised_groups = try(each.value.bgp_peer.custom_advertise.all_subnets, false) ? ["ALL_SUBNETS"] : []
   dynamic "advertised_ip_ranges" {
     for_each = try(each.value.bgp_peer.custom_advertise.ip_ranges, {})
     iterator = range
     content {
       range       = range.key
       description = range.value
-    }
-  }
-  dynamic "bfd" {
-    for_each = each.value.bgp_peer.bfd != null ? [each.value.bgp_peer.bfd] : []
-    content {
-      session_initialization_mode = bfd.value.session_initialization_mode
-      min_receive_interval        = bfd.value.min_receive_interval
-      min_transmit_interval       = bfd.value.min_transmit_interval
-      multiplier                  = bfd.value.multiplier
     }
   }
   dynamic "md5_authentication_key" {
@@ -143,7 +130,7 @@ resource "google_compute_router_interface" "router_interface" {
   for_each = var.tunnels
   project  = var.project_id
   region   = var.region
-  name     = "${var.name}-${each.key}"
+  name     = each.value.peer_router_interface_name != null ? each.value.peer_router_interface_name : "${var.name}-${each.key}"
   router   = local.router
   # FIXME: can bgp_session_range be null?
   ip_range   = each.value.bgp_session_range == "" ? null : each.value.bgp_session_range
@@ -154,7 +141,7 @@ resource "google_compute_vpn_tunnel" "tunnels" {
   for_each = var.tunnels
   project  = var.project_id
   region   = var.region
-  name     = "${var.name}-${each.key}"
+  name     = each.value.name != null ? each.value.name : "${var.name}-${each.key}"
   router   = local.router
   peer_external_gateway = try(
     google_compute_external_vpn_gateway.external_gateway[each.value.peer_gateway].id,

@@ -14,24 +14,165 @@
  * limitations under the License.
  */
 
-variable "automation" {
-  # tfdoc:variable:source 0-bootstrap
-  description = "Automation resources created by the bootstrap stage."
+# Refer 
+variable "cas_configs" {
+  description = "The CAS CAs to add to each environment."
   type = object({
-    outputs_bucket = string
+    dev = optional(map(object({
+      ca_configs = map(object({
+        deletion_protection                    = optional(string, true)
+        type                                   = optional(string, "SELF_SIGNED")
+        is_ca                                  = optional(bool, true)
+        lifetime                               = optional(string, null)
+        pem_ca_certificate                     = optional(string, null)
+        ignore_active_certificates_on_deletion = optional(bool, false)
+        skip_grace_period                      = optional(bool, true)
+        labels                                 = optional(map(string), null)
+        gcs_bucket                             = optional(string, null)
+        key_spec = optional(object({
+          algorithm  = optional(string, "RSA_PKCS1_2048_SHA256")
+          kms_key_id = optional(string, null)
+        }), {})
+        key_usage = optional(object({
+          cert_sign          = optional(bool, true)
+          client_auth        = optional(bool, false)
+          code_signing       = optional(bool, false)
+          content_commitment = optional(bool, false)
+          crl_sign           = optional(bool, true)
+          data_encipherment  = optional(bool, false)
+          decipher_only      = optional(bool, false)
+          digital_signature  = optional(bool, false)
+          email_protection   = optional(bool, false)
+          encipher_only      = optional(bool, false)
+          key_agreement      = optional(bool, false)
+          key_encipherment   = optional(bool, true)
+          ocsp_signing       = optional(bool, false)
+          server_auth        = optional(bool, true)
+          time_stamping      = optional(bool, false)
+        }), {})
+        subject = optional(object({
+          common_name         = string
+          organization        = string
+          country_code        = optional(string)
+          locality            = optional(string)
+          organizational_unit = optional(string)
+          postal_code         = optional(string)
+          province            = optional(string)
+          street_address      = optional(string)
+          }), {
+          common_name  = "test.example.com"
+          organization = "Test Example"
+        })
+        subject_alt_name = optional(object({
+          dns_names       = optional(list(string), null)
+          email_addresses = optional(list(string), null)
+          ip_addresses    = optional(list(string), null)
+          uris            = optional(list(string), null)
+        }), null)
+        subordinate_config = optional(object({
+          root_ca_id              = optional(string)
+          pem_issuer_certificates = optional(list(string))
+        }), null)
+      }))
+      ca_pool_config = object({
+        ca_pool_id = optional(string, null)
+        name       = optional(string, null)
+        tier       = optional(string, "DEVOPS")
+      })
+      location              = string
+      iam                   = optional(map(list(string)), {})
+      iam_bindings          = optional(map(any), {})
+      iam_bindings_additive = optional(map(any), {})
+      iam_by_principals     = optional(map(list(string)), {})
+    })), {})
+    prod = optional(map(object({
+      ca_configs = map(object({
+        deletion_protection                    = optional(string, true)
+        type                                   = optional(string, "SELF_SIGNED")
+        is_ca                                  = optional(bool, true)
+        lifetime                               = optional(string, null)
+        pem_ca_certificate                     = optional(string, null)
+        ignore_active_certificates_on_deletion = optional(bool, false)
+        skip_grace_period                      = optional(bool, true)
+        labels                                 = optional(map(string), null)
+        gcs_bucket                             = optional(string, null)
+        key_spec = optional(object({
+          algorithm  = optional(string, "RSA_PKCS1_2048_SHA256")
+          kms_key_id = optional(string, null)
+        }), {})
+        key_usage = optional(object({
+          cert_sign          = optional(bool, true)
+          client_auth        = optional(bool, false)
+          code_signing       = optional(bool, false)
+          content_commitment = optional(bool, false)
+          crl_sign           = optional(bool, true)
+          data_encipherment  = optional(bool, false)
+          decipher_only      = optional(bool, false)
+          digital_signature  = optional(bool, false)
+          email_protection   = optional(bool, false)
+          encipher_only      = optional(bool, false)
+          key_agreement      = optional(bool, false)
+          key_encipherment   = optional(bool, true)
+          ocsp_signing       = optional(bool, false)
+          server_auth        = optional(bool, true)
+          time_stamping      = optional(bool, false)
+        }), {})
+        subject = optional(object({
+          common_name         = string
+          organization        = string
+          country_code        = optional(string)
+          locality            = optional(string)
+          organizational_unit = optional(string)
+          postal_code         = optional(string)
+          province            = optional(string)
+          street_address      = optional(string)
+          }), {
+          common_name  = "test.example.com"
+          organization = "Test Example"
+        })
+        subject_alt_name = optional(object({
+          dns_names       = optional(list(string), null)
+          email_addresses = optional(list(string), null)
+          ip_addresses    = optional(list(string), null)
+          uris            = optional(list(string), null)
+        }), null)
+        subordinate_config = optional(object({
+          root_ca_id              = optional(string)
+          pem_issuer_certificates = optional(list(string))
+        }), null)
+      }))
+      ca_pool_config = object({
+        ca_pool_id = optional(string, null)
+        name       = optional(string, null)
+        tier       = optional(string, "DEVOPS")
+      })
+      location = string
+      iam      = optional(map(list(string)), {})
+      iam_bindings = optional(map(object({
+        members = list(string)
+        role    = string
+        condition = optional(object({
+          expression  = string
+          title       = string
+          description = optional(string)
+        }))
+      })), {})
+      iam_bindings_additive = optional(map(object({
+        member = string
+        role   = string
+        condition = optional(object({
+          expression  = string
+          title       = string
+          description = optional(string)
+        }))
+      })), {})
+      iam_by_principals = optional(map(list(string)), {})
+    })), {})
   })
-}
-
-variable "billing_account" {
-  # tfdoc:variable:source 0-bootstrap
-  description = "Billing account id. If billing account is not part of the same org set `is_org_level` to false."
-  type = object({
-    id           = string
-    is_org_level = optional(bool, true)
-  })
-  validation {
-    condition     = var.billing_account.is_org_level != null
-    error_message = "Invalid `null` value for `billing_account.is_org_level`."
+  nullable = false
+  default = {
+    dev  = {}
+    prod = {}
   }
 }
 
@@ -39,28 +180,6 @@ variable "essential_contacts" {
   description = "Email used for essential contacts, unset if null."
   type        = string
   default     = null
-}
-
-variable "factories_config" {
-  description = "Paths to folders that enable factory functionality."
-  type = object({
-    vpc_sc = optional(object({
-      access_levels       = optional(string, "data/vpc-sc/access-levels")
-      egress_policies     = optional(string, "data/vpc-sc/egress-policies")
-      ingress_policies    = optional(string, "data/vpc-sc/ingress-policies")
-      restricted_services = optional(string, "data/vpc-sc/restricted-services.yaml")
-    }), {})
-  })
-  nullable = false
-  default  = {}
-}
-
-variable "folder_ids" {
-  # tfdoc:variable:source 1-resman
-  description = "Folder name => id mappings, the 'security' folder name must exist."
-  type = object({
-    security = string
-  })
 }
 
 variable "kms_keys" {
@@ -102,24 +221,30 @@ variable "kms_keys" {
   nullable = false
 }
 
-variable "logging" {
-  # tfdoc:variable:source 0-bootstrap
-  description = "Log writer identities for organization / folders."
+variable "ngfw_tls_configs" {
+  description = "The CAS and trust configurations key names to be used for NGFW Enterprise."
   type = object({
-    project_number    = string
-    writer_identities = map(string)
+    keys = optional(object({
+      dev = optional(object({
+        cas           = optional(list(string), ["ngfw-dev-cas-0"])
+        trust_configs = optional(list(string), ["ngfw-dev-tc-0"])
+      }), {})
+      prod = optional(object({
+        cas           = optional(list(string), ["ngfw-prod-cas-0"])
+        trust_configs = optional(list(string), ["ngfw-prod-tc-0"])
+      }), {})
+    }), {})
+    tls_inspection = optional(object({
+      enabled               = optional(bool, false)
+      exclude_public_ca_set = optional(bool, false)
+      min_tls_version       = optional(string, "TLS_1_0")
+    }), {})
   })
-  default = null
-}
-
-variable "organization" {
-  # tfdoc:variable:source 0-bootstrap
-  description = "Organization details."
-  type = object({
-    domain      = string
-    id          = number
-    customer_id = string
-  })
+  nullable = false
+  default = {
+    dev  = {}
+    prod = {}
+  }
 }
 
 variable "outputs_location" {
@@ -128,47 +253,31 @@ variable "outputs_location" {
   default     = null
 }
 
-variable "prefix" {
-  # tfdoc:variable:source 0-bootstrap
-  description = "Prefix used for resources that need unique names. Use 9 characters or less."
-  type        = string
-  validation {
-    condition     = try(length(var.prefix), 0) < 10
-    error_message = "Use a maximum of 9 characters for prefix."
-  }
-}
-
-variable "service_accounts" {
-  # tfdoc:variable:source 1-resman
-  description = "Automation service accounts that can assign the encrypt/decrypt roles on keys."
+variable "trust_configs" {
+  description = "The trust configs grouped by environment."
   type = object({
-    data-platform-dev    = string
-    data-platform-prod   = string
-    project-factory-dev  = string
-    project-factory-prod = string
+    dev = optional(map(object({
+      description              = optional(string)
+      location                 = string
+      allowlisted_certificates = optional(map(string), {})
+      trust_stores = optional(map(object({
+        intermediate_cas = optional(map(string), {})
+        trust_anchors    = optional(map(string), {})
+      })), {})
+    })))
+    prod = optional(map(object({
+      description              = optional(string)
+      location                 = string
+      allowlisted_certificates = optional(map(string), {})
+      trust_stores = optional(map(object({
+        intermediate_cas = optional(map(string), {})
+        trust_anchors    = optional(map(string), {})
+      })), {})
+    })))
   })
-}
-
-variable "vpc_sc" {
-  description = "VPC SC configuration."
-  type = object({
-    access_levels    = optional(map(any), {})
-    egress_policies  = optional(map(any), {})
-    ingress_policies = optional(map(any), {})
-    perimeter_default = optional(object({
-      access_levels    = optional(list(string), [])
-      dry_run          = optional(bool, false)
-      egress_policies  = optional(list(string), [])
-      ingress_policies = optional(list(string), [])
-      resources        = optional(list(string), [])
-    }))
-    resource_discovery = optional(object({
-      enabled          = optional(bool, true)
-      ignore_folders   = optional(list(string), [])
-      ignore_projects  = optional(list(string), [])
-      include_projects = optional(list(string), [])
-    }), {})
-  })
-  default  = {}
   nullable = false
+  default = {
+    dev  = {}
+    prod = {}
+  }
 }

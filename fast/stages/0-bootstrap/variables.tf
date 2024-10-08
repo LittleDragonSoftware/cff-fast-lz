@@ -45,6 +45,18 @@ variable "cicd_repositories" {
       branch            = optional(string)
       identity_provider = optional(string)
     }))
+    tenants = optional(object({
+      name              = string
+      type              = string
+      branch            = optional(string)
+      identity_provider = optional(string)
+    }))
+    vpcsc = optional(object({
+      name              = string
+      type              = string
+      branch            = optional(string)
+      identity_provider = optional(string)
+    }))
   })
   default = null
   validation {
@@ -57,22 +69,18 @@ variable "cicd_repositories" {
   validation {
     condition = alltrue([
       for k, v in coalesce(var.cicd_repositories, {}) :
-      v == null || (
-        try(v.identity_provider, null) != null
-        ||
-        try(v.type, null) == "sourcerepo"
-      )
+      v == null || try(v.identity_provider, null) != null
     ])
-    error_message = "Non-null repositories need a non-null provider unless type is 'sourcerepo'."
+    error_message = "Non-null repositories need a non-null provider."
   }
   validation {
     condition = alltrue([
       for k, v in coalesce(var.cicd_repositories, {}) :
       v == null || (
-        contains(["github", "gitlab", "sourcerepo"], coalesce(try(v.type, null), "null"))
+        contains(["github", "gitlab"], coalesce(try(v.type, null), "null"))
       )
     ])
-    error_message = "Invalid repository type, supported types: 'github' 'gitlab' or 'sourcerepo'."
+    error_message = "Invalid repository type, supported types: 'github' or 'gitlab'."
   }
 }
 
@@ -81,6 +89,30 @@ variable "custom_roles" {
   type        = map(list(string))
   nullable    = false
   default     = {}
+}
+
+variable "environments" {
+  description = "Environment names."
+  type = map(object({
+    name       = string
+    is_default = optional(bool, false)
+  }))
+  nullable = false
+  default = {
+    dev = {
+      name = "Development"
+    }
+    prod = {
+      name       = "Production"
+      is_default = true
+    }
+  }
+  validation {
+    condition = anytrue([
+      for k, v in var.environments : v.is_default == true
+    ])
+    error_message = "At least one environment should be marked as default."
+  }
 }
 
 variable "essential_contacts" {
@@ -101,27 +133,13 @@ variable "factories_config" {
   default  = {}
 }
 
-variable "fast_features" {
-  description = "Selective control for top-level FAST features."
-  type = object({
-    data_platform   = optional(bool, false)
-    gcve            = optional(bool, false)
-    gke             = optional(bool, false)
-    project_factory = optional(bool, false)
-    sandbox         = optional(bool, false)
-    teams           = optional(bool, false)
-  })
-  default  = {}
-  nullable = false
-}
-
 variable "groups" {
   # https://cloud.google.com/docs/enterprise/setup-checklist
   description = "Group names or IAM-format principals to grant organization-level permissions. If just the name is provided, the 'group:' principal and organization domain are interpolated."
   type = object({
     gcp-billing-admins      = optional(string, "gcp-billing-admins")
     gcp-devops              = optional(string, "gcp-devops")
-    gcp-network-admins      = optional(string, "gcp-network-admins")
+    gcp-network-admins      = optional(string, "gcp-vpc-network-admins")
     gcp-organization-admins = optional(string, "gcp-organization-admins")
     gcp-security-admins     = optional(string, "gcp-security-admins")
     # aliased to gcp-devops as the checklist does not create it
@@ -180,17 +198,36 @@ variable "log_sinks" {
     filter = string
     type   = string
   }))
+  nullable = false
   default = {
     audit-logs = {
-      filter = "logName:\"/logs/cloudaudit.googleapis.com%2Factivity\" OR logName:\"/logs/cloudaudit.googleapis.com%2Fsystem_event\" OR protoPayload.metadata.@type=\"type.googleapis.com/google.cloud.audit.TransparencyLog\""
+      filter = <<-FILTER
+        log_id("cloudaudit.googleapis.com/activity") OR
+        log_id("cloudaudit.googleapis.com/system_event") OR
+        log_id("cloudaudit.googleapis.com/policy") OR
+        log_id("cloudaudit.googleapis.com/access_transparency")
+      FILTER
+      type   = "logging"
+    }
+    iam = {
+      filter = <<-FILTER
+        protoPayload.serviceName="iamcredentials.googleapis.com" OR
+        protoPayload.serviceName="iam.googleapis.com" OR
+        protoPayload.serviceName="sts.googleapis.com"
+      FILTER
       type   = "logging"
     }
     vpc-sc = {
-      filter = "protoPayload.metadata.@type=\"type.googleapis.com/google.cloud.audit.VpcServiceControlAuditMetadata\""
+      filter = <<-FILTER
+        protoPayload.metadata.@type="type.googleapis.com/google.cloud.audit.VpcServiceControlAuditMetadata"
+      FILTER
       type   = "logging"
     }
     workspace-audit-logs = {
-      filter = "logName:\"/logs/cloudaudit.googleapis.com%2Fdata_access\" and protoPayload.serviceName:\"login.googleapis.com\""
+      filter = <<-FILTER
+        log_id("cloudaudit.googleapis.com/data_access") AND
+        protoPayload.serviceName="login.googleapis.com"
+      FILTER
       type   = "logging"
     }
   }
@@ -207,7 +244,8 @@ variable "org_policies_config" {
   description = "Organization policies customization."
   type = object({
     constraints = optional(object({
-      allowed_policy_member_domains = optional(list(string), [])
+      allowed_essential_contact_domains = optional(list(string), [])
+      allowed_policy_member_domains     = optional(list(string), [])
     }), {})
     import_defaults = optional(bool, false)
     tag_name        = optional(string, "org-policies")

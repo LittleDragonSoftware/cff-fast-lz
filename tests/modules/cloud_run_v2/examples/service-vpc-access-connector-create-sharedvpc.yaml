@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ values:
   module.cloud_run.google_vpc_access_connector.connector[0]:
     ip_cidr_range: null
     machine_type: e2-standard-4
-    max_throughput: 1000
+    max_throughput: 300
     min_throughput: 200
     name: hello
     project: test-service
@@ -44,6 +44,6 @@ counts:
   google_cloud_run_v2_service: 1
   google_vpc_access_connector: 1
   modules: 4
-  resources: 40
+  resources: 55
 
 outputs: {}

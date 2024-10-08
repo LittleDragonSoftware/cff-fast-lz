@@ -15,65 +15,48 @@
  */
 
 locals {
-  # convenience flags that express where billing account resides
-  automation_resman_sa = try(
-    data.google_client_openid_userinfo.provider_identity[0].email, null
-  )
-  automation_resman_sa_iam = (
-    local.automation_resman_sa == null
-    ? []
-    : ["serviceAccount:${local.automation_resman_sa}"]
-  )
-  # service accounts that receive additional grants on networking/security
-  branch_optional_sa_lists = {
-    dp-dev    = compact([try(module.branch-dp-dev-sa[0].iam_email, "")])
-    dp-prod   = compact([try(module.branch-dp-prod-sa[0].iam_email, "")])
-    gcve-dev  = compact([try(module.branch-gcve-dev-sa[0].iam_email, "")])
-    gcve-prod = compact([try(module.branch-gcve-prod-sa[0].iam_email, "")])
-    gke-dev   = compact([try(module.branch-gke-dev-sa[0].iam_email, "")])
-    gke-prod  = compact([try(module.branch-gke-prod-sa[0].iam_email, "")])
-    pf-dev    = compact([try(module.branch-pf-dev-sa[0].iam_email, "")])
-    pf-prod   = compact([try(module.branch-pf-prod-sa[0].iam_email, "")])
-  }
-  branch_optional_r_sa_lists = {
-    dp-dev    = compact([try(module.branch-dp-dev-r-sa[0].iam_email, "")])
-    dp-prod   = compact([try(module.branch-dp-prod-r-sa[0].iam_email, "")])
-    gcve-dev  = compact([try(module.branch-gcve-dev-r-sa[0].iam_email, "")])
-    gcve-prod = compact([try(module.branch-gcve-prod-r-sa[0].iam_email, "")])
-    gke-dev   = compact([try(module.branch-gke-dev-r-sa[0].iam_email, "")])
-    gke-prod  = compact([try(module.branch-gke-prod-r-sa[0].iam_email, "")])
-    pf-dev    = compact([try(module.branch-pf-dev-r-sa[0].iam_email, "")])
-    pf-prod   = compact([try(module.branch-pf-prod-r-sa[0].iam_email, "")])
+  # leaving this here to document how to get self identity in a stage
+  # automation_resman_sa = try(
+  #   data.google_client_openid_userinfo.provider_identity[0].email, null
+  # )
+  # stage service accounts, used in top folders and outputs
+  branch_service_accounts = {
+    data-platform-dev      = try(module.branch-dp-dev-sa[0].email, null)
+    data-platform-dev-r    = try(module.branch-dp-dev-r-sa[0].email, null)
+    data-platform-prod     = try(module.branch-dp-prod-sa[0].email, null)
+    data-platform-prod-r   = try(module.branch-dp-prod-r-sa[0].email, null)
+    gcve-dev               = try(module.branch-gcve-dev-sa[0].email, null)
+    gcve-dev-r             = try(module.branch-gcve-dev-r-sa[0].email, null)
+    gcve-prod              = try(module.branch-gcve-prod-sa[0].email, null)
+    gcve-prod-r            = try(module.branch-gcve-prod-r-sa[0].email, null)
+    gke-dev                = try(module.branch-gke-dev-sa[0].email, null)
+    gke-dev-r              = try(module.branch-gke-dev-r-sa[0].email, null)
+    gke-prod               = try(module.branch-gke-prod-sa[0].email, null)
+    gke-prod-r             = try(module.branch-gke-prod-r-sa[0].email, null)
+    nsec                   = try(module.branch-nsec-sa[0].email, null)
+    nsec-r                 = try(module.branch-nsec-r-sa[0].email, null)
+    networking             = module.branch-network-sa.email
+    networking-r           = module.branch-network-r-sa.email
+    project-factory        = module.branch-pf-sa.email
+    project-factory-r      = module.branch-pf-r-sa.email
+    project-factory-dev    = module.branch-pf-dev-sa.email
+    project-factory-dev-r  = module.branch-pf-dev-r-sa.email
+    project-factory-prod   = module.branch-pf-prod-sa.email
+    project-factory-prod-r = module.branch-pf-prod-r-sa.email
+    sandbox                = try(module.branch-sandbox-sa[0].email, null)
+    security               = module.branch-security-sa.email
+    security-r             = module.branch-security-r-sa.email
   }
   # normalize CI/CD repositories
   cicd_repositories = {
     for k, v in coalesce(var.cicd_repositories, {}) : k => v
     if(
       v != null &&
-      (
-        try(v.type, null) == "sourcerepo"
-        ||
-        contains(
-          keys(local.identity_providers),
-          coalesce(try(v.identity_provider, null), ":")
-        )
+      contains(
+        keys(local.identity_providers),
+        coalesce(try(v.identity_provider, null), ":")
       ) &&
       fileexists("${path.module}/templates/workflow-${try(v.type, "")}.yaml")
-    )
-  }
-  team_cicd_repositories = {
-    for k, v in coalesce(var.team_folders, {}) : k => v
-    if(
-      v != null &&
-      (
-        try(v.cicd.type, null) == "sourcerepo"
-        ||
-        contains(
-          keys(local.identity_providers),
-          coalesce(try(v.cicd.identity_provider, null), ":")
-        )
-      ) &&
-      fileexists("${path.module}/templates/workflow-${try(v.cicd.type, "")}.yaml")
     )
   }
   cicd_workflow_var_files = {
@@ -91,11 +74,6 @@ locals {
     ]
   }
   custom_roles = coalesce(var.custom_roles, {})
-  gcs_storage_class = (
-    length(split("-", var.locations.gcs)) < 2
-    ? "MULTI_REGIONAL"
-    : "REGIONAL"
-  )
   identity_providers = coalesce(
     try(var.automation.federated_identity_providers, null), {}
   )
@@ -106,8 +84,28 @@ locals {
       : "group:${v}@${var.organization.domain}"
     )
   }
+  root_node = (
+    var.root_node == null
+    ? "organizations/${var.organization.id}"
+    : var.root_node
+  )
+  tag_keys = (
+    var.root_node == null
+    ? module.organization[0].tag_keys
+    : module.automation-project[0].tag_keys
+  )
+  tag_root = (
+    var.root_node == null
+    ? var.organization.id
+    : var.automation.project_id
+  )
+  tag_values = (
+    var.root_node == null
+    ? module.organization[0].tag_values
+    : module.automation-project[0].tag_values
+  )
 }
 
-data "google_client_openid_userinfo" "provider_identity" {
-  count = length(local.cicd_repositories) > 0 ? 1 : 0
-}
+# data "google_client_openid_userinfo" "provider_identity" {
+#   count = length(local.cicd_repositories) > 0 ? 1 : 0
+# }

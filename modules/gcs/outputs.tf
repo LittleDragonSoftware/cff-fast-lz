@@ -30,7 +30,9 @@ output "id" {
   value       = "${local.prefix}${lower(var.name)}"
   depends_on = [
     google_storage_bucket.bucket,
-    google_storage_bucket_iam_binding.bindings
+    google_storage_bucket_iam_binding.bindings,
+    google_storage_bucket_iam_binding.authoritative,
+    google_storage_bucket_iam_member.bindings
   ]
 }
 
@@ -39,7 +41,9 @@ output "name" {
   value       = "${local.prefix}${lower(var.name)}"
   depends_on = [
     google_storage_bucket.bucket,
-    google_storage_bucket_iam_binding.bindings
+    google_storage_bucket_iam_binding.bindings,
+    google_storage_bucket_iam_binding.authoritative,
+    google_storage_bucket_iam_member.bindings
   ]
 }
 
@@ -62,7 +66,7 @@ output "objects" {
 
 output "topic" {
   description = "Topic ID used by GCS."
-  value       = local.notification ? google_pubsub_topic.topic[0].id : null
+  value       = try(google_pubsub_topic.topic[0].id, null)
 }
 
 output "url" {
