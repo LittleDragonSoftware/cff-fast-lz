@@ -1,0 +1,39 @@
+# team or application-level project with automation resources
+parent: product/development
+# project prefix is forced via override in `main.tf`
+name: dev-pct-dalm-0
+labels:
+  team: pct
+  app: dalm
+  environment: dev
+iam:
+  roles/owner:
+    # refer to the rw service account defined below
+    - rw
+  roles/viewer:
+    # refer to the ro service account defined below
+    - ro
+automation:
+  # no context is possible here
+  # use the complete project id
+  project: lild-prod-iac-teams-1
+  service_accounts:
+    # resulting sa name: lild-dev-pct-dalm-0-rw
+    rw:
+      description: Read/write automation sa for product divers almanac.
+    # resulting sa name: lild-dev-pct-dalm-0-ro
+    ro:
+      description: Read-only automation sa for product drivers almanac.
+  buckets:
+    # resulting bucket name: lild-dev-pct-dalm-0-state
+    state:
+      description: Terraform state bucket for product team dirvers almanac.
+      location: us
+      iam:
+        # service accounts can use short name substitutions from context
+        roles/storage.objectCreator:
+          - rw
+        roles/storage.objectViewer:
+          - rw
+          - ro
+          - group:gcp-devops@littledragonsoftware.com

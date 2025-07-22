@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../../../schemas/folder.schema.json
+
+name: Development
+tag_bindings:
+  environment: environment/development
+iam_by_principals:
+   "group:lds-team-product-admins@littledragonsoftware.com":
+     - roles/editor
+   "group:lds-team-product@littledragonsoftware.com":
+     - roles/viewer

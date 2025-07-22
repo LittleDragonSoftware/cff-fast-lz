@@ -1,0 +1,8 @@
+# controlling project for team-level projects
+parent: teams
+name: prod-iac-teams-1
+services:
+  - compute.googleapis.com
+  - storage.googleapis.com
+  # ...
+  # enable all services used by service accounts in this project
